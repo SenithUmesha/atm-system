@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Data.SqlClient;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
 using System.Windows.Forms;
 
 namespace ATM
@@ -20,39 +12,27 @@ namespace ATM
 
         private void btnproceed_Click(object sender, EventArgs e)
         {
-            if (txtcpin.Text == Home.signinPin)
+            if (txtcpin.Text != Home.signinPin)
             {
-                string connectionString;
-                SqlConnection cnn;
-
-                connectionString = @"Data Source = SENITHUMESHA\SQLEXPRESS;Initial catalog = ZEMO_Bank;User ID=admin;Password=admin";
-
-                cnn = new SqlConnection(connectionString);
-                cnn.Open();
-                string sql2 = "Update EReceipt set Status='" + DBNull.Value + "' where AccNo = '" + Dash1.AccNo + "' ";
-                SqlCommand cmd2 = new SqlCommand(sql2, cnn);
-                cmd2.ExecuteNonQuery();
-
-                cnn.Close();
-
-                cnn = new SqlConnection(connectionString);
-                cnn.Open();
-                string sql3 = "Update EReceipt set Date='" + DBNull.Value + "' where AccNo = '" + Dash1.AccNo + "' ";
-                SqlCommand cmd3 = new SqlCommand(sql3, cnn);
-                cmd3.ExecuteNonQuery();
-
-                cnn.Close();
-
-                if (MessageBox.Show("You've successfully disabled the E-Receipt service", "E-Receipt", MessageBoxButtons.OK, MessageBoxIcon.Information) == DialogResult.OK)
-                {
-                    this.Close();
-                    Settings settings = new Settings();
-                    settings.Show();
-                }
+                MessageBox.Show("Entered PIN number is incorrect.", "E-Receipt",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-            else 
+
+            try
             {
-                MessageBox.Show("Entered PIN number is incorrect", "Error", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                BankingService.SetEReceiptPreference(Dash1.AccNo, false, DateTime.Now);
+
+                MessageBox.Show("You've successfully disabled the E-Receipt service.", "E-Receipt",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                Close();
+                new Settings().Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("E-Receipts could not be disabled. " + ex.Message,
+                    "E-Receipt", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -63,14 +43,13 @@ namespace ATM
 
         private void btnback_Click(object sender, EventArgs e)
         {
-            this.Close();
-            Settings se = new Settings();
-            se.Show();
+            Close();
+            new Settings().Show();
         }
 
         private void pbclose_Click(object sender, EventArgs e)
         {
-            this.Close();
+            Close();
         }
     }
 }
