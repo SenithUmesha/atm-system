@@ -1,0 +1,30 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.pdb
+*.cache
+
+# NuGet restore output
+packages/
+
+# Local database files
+*.mdf
+*.ldf
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
