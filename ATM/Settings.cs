@@ -1,21 +1,10 @@
-﻿using DGVPrinterHelper;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Data.SqlClient;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace ATM
 {
     public partial class Settings : Form
     {
-        public static string randomcode2 , status;
-
         public Settings()
         {
             InitializeComponent();
@@ -23,9 +12,8 @@ namespace ATM
 
         private void btnback_Click(object sender, EventArgs e)
         {
-            this.Hide();
-            Dash1 dash = new Dash1();
-            dash.ShowDialog();
+            Hide();
+            new Dash1().ShowDialog();
         }
 
         private void btncpin_Click(object sender, EventArgs e)
@@ -36,7 +24,7 @@ namespace ATM
 
         private void pbclose_Click(object sender, EventArgs e)
         {
-            this.Close();
+            Close();
         }
 
         private void btnnatms_Click(object sender, EventArgs e)
@@ -56,76 +44,54 @@ namespace ATM
             nearbyATM1.Hide();
             changePIN1.Hide();
 
-            string connectionString;
-            SqlConnection cnn;
-
-            connectionString = @"Data Source = SENITHUMESHA\SQLEXPRESS;Initial catalog = ZEMO_Bank;User ID=admin;Password=admin";
-
-            cnn = new SqlConnection(connectionString);
-            cnn.Open();
-            string sql5 = "Select Status from EReceipt where AccNo = '" + Dash1.AccNo + "'";
-            SqlCommand cmd5 = new SqlCommand(sql5, cnn);
-
-            using (SqlDataReader reader = cmd5.ExecuteReader())
+            try
             {
-                while (reader.Read())
+                bool enabled = BankingService.IsEReceiptEnabled(Dash1.AccNo, out DateTime? enabledAt);
+
+                if (!enabled)
                 {
-                    status = Convert.ToString(reader["Status"]);
-                }
-            }
-
-            cnn.Close();
-
-            if (status != "Yes")
-            {
-
-                if (MessageBox.Show("After enabling this feature you can't disable it within next 30 days!", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Information) == DialogResult.OK)
-                {
-
-                    this.Close();
-                    EReceipts1 eReceipts1 = new EReceipts1();
-                    eReceipts1.Show();
-
-                }
-            }
-            else 
-            {
-                int days;
-                DateTime startdate = DateTime.Now; //will be updated by next step , this is just a default value
-
-                DateTime todaydate = DateTime.Now;
-
-                cnn = new SqlConnection(connectionString);
-                cnn.Open();
-                string sql6 = "Select Date from EReceipt where AccNo = '" + Dash1.AccNo + "'";
-                SqlCommand cmd6 = new SqlCommand(sql6, cnn);
-
-                using (SqlDataReader reader = cmd6.ExecuteReader())
-                {
-                    while (reader.Read())
+                    if (MessageBox.Show(
+                        "After enabling this feature you can't disable it within the next 30 days.",
+                        "E-Receipts",
+                        MessageBoxButtons.OKCancel,
+                        MessageBoxIcon.Information) == DialogResult.OK)
                     {
-                        startdate = (DateTime)reader["Date"];
+                        Close();
+                        new EReceipts1().Show();
+                    }
+
+                    return;
+                }
+
+                DateTime startDate = enabledAt ?? DateTime.Now;
+                int daysEnabled = Math.Max(0, (DateTime.Now.Date - startDate.Date).Days);
+
+                if (daysEnabled >= 30)
+                {
+                    if (MessageBox.Show(
+                        "E-Receipts are enabled. Do you want to disable them?",
+                        "E-Receipts",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information) == DialogResult.Yes)
+                    {
+                        Hide();
+                        new EReceipts2().Show();
                     }
                 }
-
-                cnn.Close();
-
-                days = (todaydate.Date - startdate.Date).Days ;
-
-                if (days > 30)
+                else
                 {
-                    if (MessageBox.Show("You've already enabled this feature!\n\nDo you want to DISABLE it ?", "Disable E-Receipts", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
-                    {
-                        this.Hide();
-                        EReceipts2 eReceipts2 = new EReceipts2();
-                        eReceipts2.Show();
-                    }
+                    int remainingDays = 30 - daysEnabled;
+                    MessageBox.Show(
+                        "E-Receipts are enabled. Disable becomes available in " + remainingDays + " day(s).",
+                        "E-Receipts",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
                 }
-                else 
-                {
-                    int remainingdays = 30 - days;
-                    MessageBox.Show("You've already enabled this feature!\n( DISABLE feature will be available in "+remainingdays+" days )", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("E-Receipt settings could not be loaded. " + ex.Message,
+                    "E-Receipts", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
     }
