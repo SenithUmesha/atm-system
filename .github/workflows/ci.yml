@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Verify repository hygiene
+        shell: pwsh
+        run: |
+          $tracked = git ls-files
+          $forbidden = $tracked | Where-Object {
+            $_ -match '(^|/)(bin|obj|\.vs)/' -or
+            $_ -match '^packages/' -or
+            $_ -match '\.(mdf|ldf)$' -or
+            $_ -match '\.csproj\.user$'
+          }
+
+          if ($forbidden) {
+            $forbidden | ForEach-Object { Write-Error "Generated/local artifact is tracked: $_" }
+            exit 1
+          }
+
+      - name: Guard active source against machine-local configuration
+        shell: pwsh
+        run: |
+          $source = Get-ChildItem ATM -Recurse -Include *.cs,*.config |
+            Where-Object {
+              $_.FullName -notmatch '\\(bin|obj)\\'
+            }
+
+          $patterns = @(
+            'SENITHUMESHA\\SQLEXPRESS',
+            'Password\s*=\s*admin',
+            'C:\\Users\\',
+            'new\s+NetworkCredential\s*\(\s*"'
+          )
+
+          foreach ($pattern in $patterns) {
+            $matches = $source | Select-String -Pattern $pattern
+            if ($matches) {
+              $matches | ForEach-Object { Write-Error "Machine-local or literal credential pattern found: $($_.Path):$($_.LineNumber)" }
+              exit 1
+            }
+          }
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: nuget restore ATM.sln -NonInteractive
+
+      - name: Build
+        shell: pwsh
+        run: msbuild ATM.sln /t:Build /p:Configuration=Release /p:Platform="Any CPU" /m
+
+      - name: Verify output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "ATM/bin/Release/ATM.exe")) {
+            throw "Expected WinForms executable was not produced."
+          }
